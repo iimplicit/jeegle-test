@@ -52,3 +52,15 @@
     text-align: right;
     margin: 5px;
 }
+
+
+#main-content-text {
+    padding: 5px;
+    width: 500px;
+    height: 100px;
+    padding: 5px;
+    border: 1px dashed black;
+    position: absolute;
+    top: 150px;
+    left: 300px;
+}

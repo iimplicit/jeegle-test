@@ -1,119 +1,125 @@
-if ( typeof (imageApp) == typeof (undefined)) {
-    imageApp = {};
+if ( typeof (editorApp) == typeof (undefined)) {
+    editorApp = {};
 }
 
 
-imageApp = {
+editorApp = {
     data : {
-        requestTranslateFontURL : 'http://localhost'
-    },
-
-    _cacheElement : {
-        mainContentInfo : $('#main-content-info'),
-        imageForm: $('.image-app-form-div'),
-        imageFormChildDiv: $('.image-app-form-div > div'),
-        requestImageItem:
-            '<div class="requestImageItem">' +
-                '<input type="button" class="btn btn-default" value="-" /> ' +
-                '<input type="text" class="image-app-form-input-text" name="textContent" placeholder="이미지에 삽입할 문구를 입력하세요." /> ' +
-                '<input type="file" class="image-app-form-input-file" name="uploadImage" />' +
-            '</div>'
     },
 
     init : function() {
+        this.initCkeditor();
         this.addEventListener();
     },
 
     addEventListener : function() {
-        this.actionSubmitFontBtnListener();
-        this.actionRequestMoreImageBtnListener();
-        this.actionRemoveRequestItemtnListener();
+        this.setDragNResizable();
+        this.setInlineEdiorDbclick();
     },
 
-    actionSubmitFontBtnListener : function() {
-        var self = this;
-        $('[data-event-request-image]').on('click', function () {
-            self._cacheElement.mainContentInfo.empty();
-            var fontname = $("input[name=uploadfont]")[0].files[0].name;
-            fontname = fontname.split(".")[0];
-
-            blockUI.block();
-            self.requestTranslateFont(fontname);
-        });
+    setDragNResizable : function() {
+        $('#main-content-text').draggable().resizable();
     },
 
-    requestTranslateFont : function(fontname) {
-        $('[data-form-request-font]').ajaxForm({
-            type : 'post',
-            beforeSubmit : function() {
+    initCkeditor : function() {
+        // This code is generally not necessary, but it is here to demonstrate
+        // how to customize specific editor instances on the fly. This fits well
+        // this demo because we have editable elements (like headers) that
+        // require less features.
 
-            },
-            success : function(result) {
-                blockUI.unblock();
+        // The "instanceCreated" event is fired for every editor instance created.
+        CKEDITOR.on('instanceCreated', function( event ) {
+            var editor = event.editor,
+                element = editor.element;
 
-                if (result.status) {
-                    '<div class="alert alert-info font-app-alert" role="alert">변환이 완료되었습니다.</div>' +
-                    '<div class="bs-callout bs-callout-info">' +
-                    '<h4>How To Use WebFont</h4>' +
-                    "<p>@font-face {<br>&nbsp;&nbsp;font-family: '" + filename + "';<br>&nbsp;&nbsp;src:url('FontFilePath'/" + filename + ".woff') format('woff')<br>}<br>." + filename + "{<br>&nbsp;&nbsp;font-family: '" + filename + "';<br>}</p>" +
-                    '</div>';
-                } else {
-                    '<div class="alert alert-danger font-app-alert" role="alert">변환을 실패하였습니다.</div>' +
-                    '<div class="bs-callout bs-callout-danger">' +
-                    '<h4>변환 할 파일을 확인 후, 다시 시도해주세요.</h4>' +
-                    '</div>';
-                }
+            // Customize editors for headers and tag list.
+            // These editors don't need features like smileys, templates, iframes etc.
+            if ( element.is( 'h1', 'h2', 'h3' ) || element.getAttribute( 'id' ) == 'taglist' ) {
+                // Customize the editor configurations on "configLoaded" event,
+                // which is fired after the configuration file loading and
+                // execution. This makes it possible to change the
+                // configurations before the editor initialization takes place.
+                editor.on( 'configLoaded', function() {
+
+                    // Remove unnecessary plugins to make the editor simpler.
+                    editor.config.removePlugins = 'colorbutton,find,flash,font,' +
+                        'forms,iframe,image,newpage,removeformat,' +
+                        'smiley,specialchar,stylescombo,templates';
+
+                    // Rearrange the layout of the toolbar.
+                    editor.config.toolbarGroups = [
+                        { name: 'editing',		groups: [ 'basicstyles', 'links' ] },
+                        { name: 'undo' },
+                        { name: 'clipboard',	groups: [ 'selection', 'clipboard' ] },
+                        { name: 'about' }
+                    ];
+                });
             }
         });
     },
 
-    actionRequestMoreImageBtnListener : function() {
-        var imageForm = $('.image-app-form-div');
+    setInlineEdiorDbclick: function() {
         var self = this;
-        $('[data-event-request-more-image]').on('click', function() {
-            var requestImageItemCnt = $('.image-app-form-div > div').size();
-            var makedItem = self.generateRequestItem(requestImageItemCnt);
-            imageForm.append(makedItem);
+        $('[data-main-content-text]').dblclick(function() {
+            // We need to turn off the automatic editor creation first.
+            var targetId = 'main-content-text';
+            self.editorInit(targetId);
         })
     },
 
-    generateRequestItem : function(index) {
-        var itemNumber = index + 1;
-        var item =
-            '<div class="requestImageItem" data-request-image-item-info=' + itemNumber + "" +'>' +
-                '<input type="button" class="btn btn-default" value="-" data-event-remove-request-image-item=' + itemNumber + "" + '/> ' +
-                '<input type="text" class="image-app-form-input-text" name="textContent" placeholder="이미지에 삽입할 문구를 입력하세요." /> ' +
-                '<input type="file" class="image-app-form-input-file" name="uploadImage" />' +
-            '</div>'
-        return item;
-    },
+    editorInit: function(targetId) {
+        CKEDITOR.disableAutoInline = true;
 
-    actionRemoveRequestItemtnListener : function() {
-        $('body').on('click', '[data-event-remove-request-image-item]', function() {
-            this.parentNode.remove();
-        })
-    }
-}
+        var activeEditor = 0;
+        var activeEditorElement = 0;
+        var activeId = '';
 
-blockUI = {
-    block: function() {
-        $.blockUI({
-            css: {
-                border: 'none',
-                padding: '15px',
-                backgroundColor: '#000',
-                '-webkit-border-radius': '10px',
-                '-moz-border-radius': '10px',
-                opacity: .5,
-                color: '#fff'
+        // Is there already an editor active?
+        if (activeEditor) {
+
+            // Is the active editor the same
+            // as the one being requested?
+            if (activeEditor.element.getId() == activeId) {
+
+                // Then our editor is already running
+                // so there's nothing to do!
+                return;
             }
+            activeEditor.destroy();
+        }
+
+        // Find the element that we want to
+        // attach the editor to
+        if (! (activeEditorElement = document.getElementById(targetId))) {
+            return;
+        }
+
+        // TODO - verify that the element is either a
+        // div or a textarea which are the only two
+        // element types supporting contenteditable=true
+
+        // Make the element editable
+        activeEditorElement.setAttribute('contenteditable', 'true');
+
+        // Create a new inline editor for this div
+        activeEditor = CKEDITOR.inline(targetId);
+
+        // Set up a destruction function that will occur
+        // when the user clicks out of the editable space
+        activeEditor.on('blur', function() {
+            this.element.setAttribute('contenteditable', 'false');
+            activeId = '';
+            activeEditor = 0;
+            activeEditorElement = 0;
+            this.destroy();
         });
-    },
-    unblock: function() {
-        $.unblockUI();
+
+        // Now set the focus to our editor so
+        // that it will open up for business
+        activeEditorElement.focus();
     }
 }
 
 $(document).ready(function() {
-    imageApp.init();
+    editorApp.init();
 })
